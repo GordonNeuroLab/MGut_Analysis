@@ -1,0 +1,847 @@
+#Set Working Directory:
+
+setwd("Path_to_directory")
+
+#libraries
+library(ggplot2) #for plotting
+library(ggpubr)  #for the stat_compare_means function
+library(dplyr)   #For rearranging data
+library(data.table)##For rearranging data
+library(tidyr)#For rearranging data
+library(dplyr)#For rearranging data
+library(writexl)#For writing to excel sheets
+library(tidyverse)
+library(ggfortify)
+
+#Metadata
+
+Metadata <- read.csv("Metadata.csv")
+
+#Color pallets
+
+Species_col_pallet_st<-c('#00897B','#26A69A','#4DB6AC','#80CBC4',
+                         '#131195','#1b249e','#2338a6','#2b4baf','#335eb7',
+                         '#3b72c0','#4a98d1','#5abfe2','#62d2ea','#93CDDF',
+                         '#6ae6f3','#72f9fb',
+                         '#90061b','#961125','#a02437','#a52c3f','#a93447',
+                         '#d7838f','#ae3c4e','#c56677','#c96d7e','#cd7484',
+                         '#d17b8b','#da8b96','#dc929c','#d88897','#dc8f9e',
+                         '#e096a4','#EFD2D4','#F0E6E8','#faeef0','#fdf5f7',
+                         '#673AB7',
+                         '#880E4F',
+                         '#C68B24','#D6B633',
+                         '#BDBDBD')
+
+
+genus_col_pallet_st <- c("#00897B","#26A69A","#4DB6AC",
+                         '#131195',"#1b249e",'#2338a6','#2b4baf','#335eb7',
+                         '#3b72c0','#4a98d1','#5abfe2',"#93CDDF",'#72f9fb',
+                         "#90061b","#a02437","#a52c3f","#a93447","#d7838f",
+                         "#ae3c4e","#c56677","#d17b8b","#dc929c","#d88897", 
+                         "#e096a4","#EFD2D4","#F0E6E8","#faeef0","#fdf5f7",
+                         "#673AB7",
+                         "#880E4F",
+                         "#C68B24",
+                         "#D6B633",
+                         "#BDBDBD")
+
+phylum_col_pallet_st <- c("#004D40", "#131195", '#90061b','#673AB7','#880E4F','#C68B24','#BDBDBD')
+
+#Alpha_Diversity
+
+#Creating long format data
+
+A1 <- read.csv("Raw_Abundance_File_LongFormat.csv")
+
+Wide <- A1%>% spread(key=Species, value =Abundance)
+Wide[is.na(Wide)]<- 0 # Replace NA with 0
+Combined_Counts_Species<- Wide  #Rename_File with the name you want.
+write_xlsx(Combined_Counts_Species, "Combined_Counts_Species_M83_Shortterm.xlsx") # Import as an excel file.
+
+#Calculating Diversity Values
+
+library(vegan)
+Alpha_Diversity <- B %>% group_by(B$Sample_ID) %>% 
+  summarise(Sprichness = specnumber(Abundance),
+            Shannon = diversity(Abundance, index = "shannon"),
+            Simpson = diversity(Abundance, index = "simpson"),
+            InvSimpson = 1/Simpson
+  )
+
+Alpha_Diversity <-cbind(Alpha_Diversity$`B$Sample_ID`, Alpha_Diversity$Sprichness, Alpha_Diversity$Shannon, Alpha_Diversity$Simpson, Alpha_Diversity$InvSimpson, Metadata$Type) 
+Alpha_Diversity <- as.data.frame(Alpha_Diversity)
+#Editing column names for all the columns.
+colnames(Alpha_Diversity)<- c("Sample_ID", "Species_Richness", "Shannon_Diversity", "Simpson_Diversity", "Inverse_Simpsons","Type" )
+# Saving the file as an excel file.
+write_xlsx(Alpha_Diversity, "Allpha_Diversity_output.xlsx")
+
+#Plotting Alpha Diversity values
+
+Alpha_Diversity <- read.csv("Allpha_Diversity_output.csv")
+Alpha_Diversity$Type
+Alpha_Diversity$Group <- factor(Alpha_Diversity$Group, levels= c("WT", "hαSyn-Tg "))
+p <-ggplot(Alpha_Diversity, aes(x=Group, y= Species_Richness, group=Group , fill=Group))+
+  stat_boxplot(geom = "errorbar",
+               width = 0.3, lwd=1, linetype=1)+
+  geom_boxplot(linetype = 1, # Line type
+               lwd = 1)+ scale_fill_manual(values=c("dodgerblue2","red3" ))+
+  geom_point(size=4, aes(shape=Group))+ scale_shape_manual(values=c(16,17))+
+  xlab("") + ylab("Species Richness")+
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size =18 ,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.key.size = unit(2,"cm"))+
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 16,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+p
+p +stat_compare_means(method = "wilcox.test", paired = F, label.y = 24.5 , hjust = 0, size=8, fontface=4)
+ggsave("Species_richness_Final.png", width = 6, height = 6)
+
+Alpha_Diversity$Group <- factor(Alpha_Diversity$Group, levels= c("WT", "hαSyn-Tg "))
+p <-ggplot(Alpha_Diversity, aes(x=Group, y= Shannon_Diversity, group=Group , fill=Group))+
+  stat_boxplot(geom = "errorbar",
+               width = 0.3, lwd=1, linetype=1)+
+  geom_boxplot(linetype = 1, # Line type
+               lwd = 1)+ scale_fill_manual(values=c("dodgerblue2","red3" ))+
+  geom_point(size=4, aes(shape=Group))+ scale_shape_manual(values=c(16,17))+
+  xlab("") + ylab("Shannon Diversity Index")+
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size =18 ,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.key.size = unit(2,"cm"))+
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 16,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+p
+p +stat_compare_means(method = "wilcox.test", paired = F, label.y = 24.5 , hjust = 0, size=8, fontface=4)
+ggsave("Shannon_Diversity_Final.png", width = 6, height = 6)
+
+#Wilcox test results
+WT_Species_Richness <- wilcox.test(Alpha_Diversity$Species_Richness~Alpha_Diversity$Group)
+WT_Shannon_Diversity <- wilcox.test(Alpha_Diversity$Shannon_Diversity~Alpha_Diversity$Type)
+WT_Simpsons_Diversity <- wilcox.test(Alpha_Diversity$Simpson_Diversity~Alpha_Diversity$Type)
+WT_InvSimpsons_Diversity <- wilcox.test(Alpha_Diversity$Inverse_Simpsons~Alpha_Diversity$Type)
+
+#Beta_Diversity
+
+#Input file = Combined_Counts_Species_M83_Longterm.csv
+
+C <- read.csv("Combined_Counts_Species_M83_Shortterm.csv")
+
+#libraries
+
+library(vegan)
+library(ecodist)
+
+# Distance matrix 
+bray_curtis_dist <- vegdist(C[,2:42], method = "bray")
+PcoA <- cmdscale(bray_curtis_dist, eig = T, k=2)
+eigenvectors = PcoA$eig / sum(PcoA$eig)
+eigenvectors                        
+x <-adonis2(bray_curtis_dist~Metadata$Type, C, permutations = 9999, method = "bray")
+
+plot(PcoA$points)                       
+
+Metadata$MDS1 = PcoA$points[,1]
+Metadata$MDS2 = PcoA$points[,2]
+#Finding the centroid
+mean_values <- aggregate(cbind(MDS1, MDS2) ~ Type, data = Metadata, FUN = mean)
+
+#Making the PCoA plot
+ggplot(Metadata, aes(MDS1, MDS2, color = Type)) +
+  geom_point(size = 6) +
+  geom_point(data = mean_values, aes(x = MDS1, y = MDS2, color=Type), size = 8) +  # Adding mean points
+  geom_segment(data = Metadata, aes(x = mean_values$MDS1[match(Type, mean_values$Type)], 
+                                    y = mean_values$MDS2[match(Type, mean_values$Type)], 
+                                    xend = MDS1, yend = MDS2), 
+               arrow = arrow(length = unit(0.015, "npc")), color = "black", lwd=1) +  # Adding arrows
+  scale_color_manual(values = c("red3", "dodgerblue2")) +
+  stat_ellipse(level = 0.85, alpha = 1, linetype = 1, lwd = 1.25) +
+  xlab("PCoA1 (32.6%)")+
+  ylab("PCoA2 (28.3%)")+
+  labs(color = "Groups") +
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.key.size = unit(2,"cm"))+
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 16,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))
+ggsave("PcoA_plot_final.png", width = 8, height = 8)
+
+
+NMDS=metaMDS(C[,2:42], k=2, trymax = 100)
+stressplot(NMDS)
+
+#Adding NMDS values to metadata for plotting.
+Metadata$NMDS1 <- NMDS$points[,1]
+Metadata$NMDS2 <- NMDS$points[,2]
+mean_values_nmds <- aggregate(cbind(NMDS1, NMDS2) ~ Type, data = Metadata, FUN = mean)
+
+#Plot NMDS:
+ggplot(Metadata, aes(NMDS1, NMDS2, color = Type)) +
+  geom_point(size = 6) +
+  geom_point(data = mean_values_nmds, aes(x = NMDS1, y = NMDS2, color=Type), size = 8) +  # Adding mean points
+  geom_segment(data = Metadata, aes(x = mean_values_nmds$NMDS1[match(Type, mean_values_nmds$Type)], 
+                                    y = mean_values_nmds$NMDS2[match(Type, mean_values_nmds$Type)], 
+                                    xend = NMDS1, yend = NMDS2), 
+               arrow = arrow(length = unit(0.02, "npc")), color = "black", lwd=1) +
+  scale_color_manual(values = c("red3", "dodgerblue2")) +
+  stat_ellipse(level = 0.85, alpha = 1, linetype = 1, lwd = 1.25) +
+  xlab("NMDS1")+
+  ylab("NMDS2")+
+  labs(color = "Groups")+
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.key.size = unit(2,"cm"))+
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 16,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))
+ggsave("NMDS_plot_Final.png", width = 8, height = 8)
+stress_value= NMDS$stress
+
+#Differential Abundance Analysis for microbial species
+
+library("ggrepel")
+library("DESeq2")
+library("ggplot2")
+library("EnhancedVolcano")
+library("reshape2")
+library("plyr")
+
+#Loading input files ( Note: Input file must be species as rows and samples as columns and a separate metadata section).
+A <- read.csv("Combined_Counts_Species_M83_Shortterm_DA_Input.csv", row.names = 1)
+metadata <- read.csv("Metadata.csv")
+
+# Creating matrix for DESeq2.
+dds <- DESeqDataSetFromMatrix(countData = A, colData = metadata, design = ~Type)
+dds
+dds$Type <- relevel(dds$Type, ref = "WT")
+
+#Running DESeq2.
+
+dds <- DESeq(dds)
+resultsNames(dds)
+res <- results(dds)
+head(res)
+
+#Downloading Output Files.
+
+B <-write.table(res, file = "PDvsControl.txt")
+write.csv(res, "PDvsControl.csv")
+foo <- counts(dds, normalized = TRUE)
+write.csv(foo, file="DA__Normalised_Counts.csv")
+
+#plotting Differential abundance
+
+A <- read.csv("DA_plot_input_filtered.csv")
+
+ggplot(A, aes(x= reorder(Species, log2FoldChange), y=log2FoldChange , group= Change, fill=Change))+
+  geom_bar(stat="identity")+
+  geom_errorbar(aes(ymin = log2FoldChange-lfcSE, ymax = log2FoldChange+lfcSE), width = 0.5,
+                color = "black", lwd=1.25, linetype=1)+ 
+  geom_point( size=2.5)+ 
+  geom_hline(yintercept = 0, size=1.5)+
+  coord_flip()+ ylab("Fold Change")+ xlab("Differentially Abundant Species") +
+  scale_fill_manual(values=c('#90061b','#131195'))+
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 12,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 14,angle = 0, hjust=0.5, vjust=0.5)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))
+ggsave("DifferntialAbundance_Plot_Species_filtered_2.png", width=12, height=10)
+
+#Abundance analysis for microbes
+
+A <- read.csv("RA_Long_Format_st.csv")
+
+unique(A$Species)
+unique(A$Phylum)
+unique(A$Genus)
+
+A$Phylum <- factor(A$Phylum, levels = c(" p__Bacteroidota", " p__Firmicutes"," p__Firmicutes_A"," p__Proteobacteria" ," p__Verrucomicrobiota"," p__Actinobacteriota","Unassigned"))
+A$Type <- factor(A$Type, levels = c("WT","hαSyn-Tg"))
+ggplot(A, aes(x=Type, y=RA, fill=Phylum))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(phylum_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ xlab("")+
+  ylab (" Relative Abundance of Phylum") + 
+  theme(legend.position ="none")+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 18,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+ggsave("Combined_Phylum_Bar_plot_Wo_Legend.png", width =8 , height=8)
+
+ggplot(A, aes(x=Type, y=RA, fill=Phylum))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(phylum_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ xlab("")+
+  ylab (" Relative Abundance of Phylum") + 
+  labs(color = "Phyla")+
+  #theme(legend.position ="none")+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 18,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+ggsave("Combined_Phylum_Bar_plot_with_Legend.png", width =8 , height=8)
+
+ggplot(A, aes(x=Sample_ID, y=RA, fill=Phylum))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(phylum_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ 
+  ylab (" Relative Abundance") + 
+  labs(color = "Phyla")+ xlab("Samples") + 
+  theme(legend.position ="none")+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 12,angle =45, hjust=1, vjust=1)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+ggsave("Phylum_Wo_legend.png", width =8 , height=8)
+
+ggplot(A, aes(x=Sample_ID, y=RA, fill=Phylum))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(phylum_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ 
+  ylab (" Relative Abundance of Phylum") + 
+  labs(fill = "Phyla")+
+  #theme(legend.position ="none")+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 16,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 12,angle =45, hjust=1, vjust=1)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+ggsave("Phylum_Bar_plot_Samplewise_with_legend.png", width =14 , height=14)
+
+
+A$Genus <- factor(A$Genus, levels = c( " g__CAG-485",
+                                       ' g__Duncaniella',
+                                       ' g__Muribaculum',
+                                       ' g__Absiella',
+                                       ' g__Dubosiella',
+                                       ' g__Enterococcus_D',
+                                       ' g__Erysipelatoclostridium',
+                                       ' g__Faecalibaculum',
+                                       ' g__Lactobacillus',
+                                       ' g__Lactobacillus_B',
+                                       ' g__Lactobacillus_H',
+                                       ' g__Staphylococcus',
+                                       ' g__Staphylococcus_A',
+                                       ' g__14-2',
+                                       ' g__Acutalibacter',
+                                       ' g__Anaerostipes',
+                                       ' g__Anaerotruncus',
+                                       ' g__ASF356',
+                                       ' g__Blautia',
+                                       ' g__COE1',
+                                       ' g__Dorea',
+                                       ' g__Eubacterium_J',
+                                       ' g__Faecalicatena',
+                                       ' g__Hungatella_A',
+                                       ' g__Kineothrix',
+                                       ' g__Lawsonibacter',
+                                       ' g__Oscillibacter',
+                                       ' g__UBA1394',
+                                       ' g__Parasutterella',
+                                       ' g__Akkermansia',
+                                       ' g__Adlercreutzia',
+                                       ' g__Bifidobacterium',
+                                       'Unassigned'))
+ggplot(A, aes(x=Type, y=RA, fill=Genus))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(genus_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ 
+  ylab (" Relative Abundance") + xlab("")+
+  labs(fill = "Genera")+
+  theme(legend.position ="none")+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 14,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+ggsave("Combined_Genus_Bar_plot_wo_legend.png", width =8 , height=8)
+
+ggplot(A, aes(x=Type, y=RA, fill=Genus))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(genus_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ 
+  ylab (" Relative Abundance") + xlab("")+
+  labs(fill = "Genera")+
+  #theme(legend.position ="none")+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 14,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+ggsave("Combined_Genus_Bar_plot_with_legend.png", width =8 , height=8)
+
+ggplot(A, aes(x=Sample_ID, y=RA, fill=Genus))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(genus_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ 
+  ylab (" Relative Abundance of Genera") + xlab("Sample")+
+  theme(legend.position ="none")+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 12,angle =45, hjust=1, vjust=1 )) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+ggsave("Genus_Bar_plot_Samplewise_Wo_legend.png", width =14 , height=14)
+
+ggplot(A, aes(x=Sample_ID, y=RA, fill=Genus))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(genus_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ 
+  ylab (" Relative Abundance of Genera") + xlab("Sample")+
+  labs(fill="Genera")+
+  #theme(legend.position ="none")+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 12,angle =45, hjust=1, vjust=1 )) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+ggsave("Genus_Bar_plot_Samplewise_Wo_legend.png", width =14 , height=14)
+
+
+unique(A$Species)
+A$Species <- factor(A$Species, levels= c("s__CAG-485 sp002362485", "s__Duncaniella muris", "s__Muribaculum intestinale",
+                                         "s__Muribaculum sp002473395", "s__Absiella innocuum","s__Dubosiella newyorkensis",
+                                         "s__Enterococcus_D gallinarum",
+                                         "s__Erysipelatoclostridium cocleatum",
+                                         "s__Faecalibaculum rodentium",
+                                         "s__Lactobacillus johnsonii",
+                                         "s__Lactobacillus_B animalis",
+                                         "s__Lactobacillus_H reuteri",
+                                         "s__Lactobacillus_H reuteri_D",
+                                         "s__Staphylococcus nepalensis",
+                                         "s__Staphylococcus xylosus",
+                                         "s__Staphylococcus_A lentus",
+                                         "s__14-2 sp000403255",
+                                         "s__14-2 sp000403315",
+                                         "s__Acutalibacter muris",
+                                         "s__Anaerostipes sp000508985",
+                                         "s__Anaerotruncus sp000403395",
+                                         "s__ASF356 sp000364165",
+                                         "s__Blautia coccoides",
+                                         "s__COE1 sp000403215",
+                                         "s__COE1 sp000403335",
+                                         "s__COE1 sp002358575",
+                                         "s__Dorea sp000403455",
+                                         "s__Dorea sp000403475",
+                                         "s__Eubacterium_J plexicaudatum",
+                                         "s__Faecalicatena sp000364245",
+                                         "s__Faecalicatena sp000403295",
+                                         "s__Hungatella_A sp002358555",
+                                         "s__Kineothrix sp000403275",
+                                         "s__Lawsonibacter sp000492175",
+                                         "s__Oscillibacter sp000403435",
+                                         "s__UBA1394 sp900066845",
+                                         's__Parasutterella excrementihominis',
+                                         's__Akkermansia muciniphila',"s__Adlercreutzia caecimuris",
+                                         "s__Bifidobacterium pseudolongum_A",
+                                         "Unassigned"))
+ggplot(A, aes(x=Type, y=RA, fill=Species))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(Species_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ 
+  ylab (" Relative Abundance") + xlab("")+
+  theme(legend.position ="none")+ 
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 14,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 18))
+ggsave("Combined_Species_Bar_plot_Wo_Legend.png", width =8 , height=8) 
+
+ggplot(A, aes(x=Sample_ID, y=RA, fill=Species))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(Species_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ 
+  ylab (" Relative Abundance") + xlab("")+
+  #theme(legend.position ="none")+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 14,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 26))
+ggsave("Combined_Species_Bar_plot_with_legend.png", width =14 , height=14)
+
+ggplot(A, aes(x=Sample_ID, y=RA, fill=Species))+
+  geom_bar(stat = "identity") +scale_fill_manual(values=c(Species_col_pallet_st)) +
+  facet_grid(.~Type, scales = "free") +
+  theme_bw()+ 
+  ylab (" Relative Abundance") + xlab("")+
+  theme(legend.position ="none")+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 22,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 22,angle =45, hjust=1, vjust=1)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 26, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(strip.text.x = element_text(color="black", face = "bold", size= 26))
+ggsave("Species_Bar_plot_Wo_legend.png", width =14 , height=14)
+
+
+#Differential abundance analysis for microbial pathways
+
+install.packages("devtools")
+library("devtools")
+install_github("biobakery/Maaslin2")
+library(Maaslin2)
+
+#Differential abundance time and type
+
+
+setwd("C:/Users/n11925256/OneDrive - Queensland University of Technology/Documents/M83_Mice_Study/Combined_Mouse_Study/")
+library(ggplot2)
+library(Maaslin2)
+A <- read.csv("Raw_Counts_Combined_File.csv", row.names = 1)
+metadata <- read.csv("Meta_exp.csv", row.names = 1)
+
+fit_data <- Maaslin2(A, metadata, "Output_Maaslin2_Combined_3", standardize = F, reference = c("WT","Early"))
+
+
+#Plotting the differential abundance based on genotypic and aging effects
+A<-read.csv("DA_Type_Time.csv")
+ggplot(A, aes(x= reorder(feature, log2FoldChange), y=log2FoldChange , group= Change, fill=Change))+
+  geom_bar(stat="identity")+
+  geom_errorbar(aes(ymin = log2FoldChange-stderr, ymax = log2FoldChange+stderr), width = 0.5,
+                color = "black", lwd=1.25, linetype=1)+
+  geom_point( size=2.5)+ 
+  coord_flip()+ ylab("Log2Fold Change")+ xlab("Differentially Abundant Species") + facet_grid(.~A$metadata)+
+  scale_fill_manual(values=c('#90061b',"#00897B",'#131195'))+
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+        
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 12,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 12,angle = 0, hjust=0.5)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))
+
+ggsave("DifferntialAbundance_Plot_Time_TYpe.png", width=18, height=12)
+
+ggplot(A, aes(y= reorder(feature, log2FoldChange), x=log2FoldChange , group= Change,color=Change))+
+  geom_errorbar(aes(xmin = log2FoldChange-stderr, xmax = log2FoldChange+stderr), width = 0.5,
+                color = "black", lwd=1.25, linetype=1)+
+  geom_point(size=8, shape=19)+
+  xlab("Log2Fold Change")+ ylab("Differentially Abundant Species") + facet_grid(.~A$metadata)+
+  scale_color_manual(values=c('#90061b',"#00897B",'#131195'))+
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+ 
+  theme(legend.text =element_text(color= "black",face = "bold" ,size = 12,  hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 12,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 12,angle = 0, hjust=0.5)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(strip.text = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 0))
+ggsave("DifferntialAbundance_Plot_Time_TYpe_bubbles.png", width=18, height=12)
+
+ggplot(A, aes(y= feature, x=log2FoldChange , group= Change,color=Change))+
+  geom_vline(xintercept = 0, size=1.5, color="grey")+
+  geom_errorbar(aes(xmin = log2FoldChange-stderr, xmax = log2FoldChange+stderr), width = 0.5,
+                color = "black", lwd=1.25, linetype=1)+
+  geom_point(size=6, aes(shape=metadata))+
+  xlab("Log2Fold Change")+ ylab("Differentially Abundant Species") + 
+  scale_color_manual(values=c('#90061b','#131195',"#00897B"))+
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+ 
+  theme(legend.text =element_text(color= "black",face = "bold" ,size = 12,  hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 16,angle = 0, hjust=0.5)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(strip.text = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 0))
+ggsave("DifferntialAbundance_Plot_Time_TYpe_bubbles_2.png", width=12, height=12)
+
+A<-read.csv("DA_Type_Time.csv")
+unique(A$feature)
+A$feature <- factor(A$feature, levels= c("s__CAG.485.sp002362485","s__Duncaniella.muris","s__Muribaculum.intestinale","s__Muribaculum.sp002473395","s__Absiella.innocuum", "s__Dubosiella.newyorkensis","s__Erysipelatoclostridium.cocleatum","s__Faecalibaculum.rodentium" ,
+                                         "s__Lactobacillus.johnsonii","s__Lactobacillus_B.animalis" ,"s__Lactobacillus_H.reuteri","s__Lactobacillus_H.reuteri_D","s__Staphylococcus.xylosus", "s__Staphylococcus_A.lentus", "s__COE1.sp000403215" ,"s__14.2.sp000403255",
+                                         "s__COE1.sp000403335" ,"s__Acutalibacter.muris","s__Anaerostipes.sp000508985","s__Anaerotruncus.sp000403395", "s__Acutalibacter.muris.1" , "s__Lawsonibacter.sp000492175","s__Turicimonas.muris","s__UBA1394.sp900066845",
+                                         "s__CAG.180.MIC6647", "s__Blautia.coccoides", "s__COE1.sp002358575" ,"s__Dorea.sp000403455","s__Dorea.sp000403475", "s__Faecalicatena.MIC8692","s__Faecalicatena.sp000403295" ,"s__Faecalicatena.sp000364245"  ,
+                                         "s__Oscillibacter.sp000403435", "s__Clostridium_Q.symbiosum","s__14.2.sp000403315", "s__Parasutterella.excrementihominis","s__Adlercreutzia.caecimuris" ,"s__Akkermansia.muciniphila", "s__Bifidobacterium.pseudolongum_A", "Unassigned"))
+
+
+# Create a new column to represent signs
+A$sign <- ifelse(A$pval <= 0.06, ifelse(A$Associations > 0, "+", "-"), "")
+# Create the ggplot
+ggplot(A, aes(x = metadata, y = feature, fill = Associations)) +
+  geom_tile(color = "white", lwd = 1.25, linetype = 1) +
+  scale_fill_distiller(palette = "Spectral") +
+  xlab("") + 
+  ylab("") + 
+  labs(fill = "Association Strength") +
+  guides(fill = guide_colourbar(barwidth = 0.55, barheight = 30)) +
+  coord_equal() +
+  theme(legend.title = element_text(color = "black", face = "bold", size = 14, hjust = 0.5, vjust = 0.5, angle = 0)) +
+  theme(axis.text.y = element_text(color = "black", face = "bold", size = 12, hjust = 1, vjust = 0.5, angle = 0)) +          
+  theme(axis.text.x = element_text(color = "black", face = "bold", size = 12, angle = 90, hjust = 0.5)) +          
+  theme(axis.title.x = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 0)) +         
+  theme(axis.title.y = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 90)) +
+  theme(strip.text.x = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 0)) +
+  geom_text(aes(label = Sign), color = "black", size = 5, fontface = "bold")
+ggsave("Association_Heat_Map_microbes.png", width = 10, height=10)
+
+
+#Microbial pathways:
+A <- read.csv("DA_All_pathways_file.csv")
+B<- read.csv("Feature_pathway_list.csv")
+library(dplyr)
+library(purrr)
+A1 <- as.list(B$Features)
+A1
+Filtered <- A%>% filter(feature %in% A1)
+write_xlsx(Filtered, "Filtered_Pathways_DA_File.xlsx") # Import as an excel file.
+
+
+
+A <- read.csv("Filtered_Data_pathway.csv")
+ggplot(A, aes(y= feature, x=log2FoldChange , group= Change,color=Change))+
+  geom_vline(xintercept = 0, size=1.5, color="grey")+
+  geom_errorbar(aes(xmin = log2FoldChange-stderr, xmax = log2FoldChange+stderr), width = 0.5,
+                color = "black", lwd=1.25, linetype=1)+
+  geom_point(size=6, aes(shape=metadata))+
+  xlab("Log2Fold Change")+ ylab("Differentially Abundant Pathways") + 
+  scale_color_manual(values=c('#90061b','#131195',"#00897B"))+
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+ 
+  theme(legend.text =element_text(color= "black",face = "bold" ,size = 12,  hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 12,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 16,angle = 0, hjust=0.5)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(strip.text = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 0))
+ggsave("DifferntialAbundance_Plot_Time_TYpe_bubbles_pathway.png", width=12, height=12)
+
+ggplot(A, aes(x = metadata, y = feature, fill = Associations)) +
+  geom_tile(color = "white", lwd = 1.25, linetype = 1) +
+  scale_fill_distiller(palette = "Spectral") +
+  xlab("") + 
+  ylab("") + 
+  labs(fill = "Association Strength") +
+  guides(fill = guide_colourbar(barwidth = 0.55, barheight = 30)) +
+  coord_equal() +
+  theme(legend.title = element_text(color = "black", face = "bold", size = 14, hjust = 0.5, vjust = 0.5, angle = 0)) +
+  theme(axis.text.y = element_text(color = "black", face = "bold", size = 12, hjust = 1, vjust = 0.5, angle = 0)) +          
+  theme(axis.text.x = element_text(color = "black", face = "bold", size = 12, angle = 90, hjust = 0.5)) +          
+  theme(axis.title.x = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 0)) +         
+  theme(axis.title.y = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 90)) +
+  theme(strip.text.x = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 0)) +
+  geom_text(aes(label = Sign), color = "black", size = 5, fontface = "bold")
+ggsave("Association_Heat_Map_Pathways.png", width = 10, height=10)
+
+#F/B ratios:
+setwd("C:/Users/n11925256/OneDrive - Queensland University of Technology/Documents/M83_Mice_Study/Short_Term_Study//")
+
+A <- read.csv("Firmicutes_Bacteriodites_ratio_Shortterm.csv")
+
+A$Type<- factor(A$Type, levels= c("WT", "hαSyn-Tg "))
+ggplot(A, aes(x=Type, y=F.B.Ratio, fill = Type))+
+  xlab("")+ylab("F/B Ratio")+
+  stat_boxplot(geom = "errorbar",
+               width = 0.3, lwd=1, linetype=1)+
+  geom_boxplot(linetype = 1, # Line type
+               lwd = 1)+ scale_fill_manual(values=c("dodgerblue2","red3" ))+
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size =18 ,  hjust=0.5, vjust= 0.5,angle = 0))+  
+  theme(legend.key.size = unit(2,"cm"))+
+  theme(legend.text = element_text(color= "black",face = "bold" ,size = 12,  hjust=0, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 16,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 16,angle = 0)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(plot.title =  element_text(color= "black",face = "bold" ,size = 14, hjust=0.5, vjust= 0.5,angle = 0))
+ggsave("Firmicutes_by_bacteriodiets_ratio_shortterm.png", width = 6, height = 6)
+
+
+
+
+# Aggregating file generation:
+
+A <- read.csv("Aggregator_Input_RA_FIle.csv")
+# while listing the columns the list the columns as firstcol-1, lastcol-1 for the code to work.
+means <- A %>%
+  group_by(Phylum) %>%
+  summarise(across(6:19, ~ sum(.x, na.rm = TRUE), .names = "{col}"))
+write_xlsx(means, "Phylum_aggregated_RA.xlsx")
+
+means <- A %>%
+  group_by(Genus) %>%
+  summarise(across(6:19, ~ sum(.x, na.rm = TRUE), .names = "{col}"))
+write_xlsx(means, "Genera_aggregated_RA.xlsx")
+
+#Pathway families Differential abundance.
+setwd("C:/Users/n11925256/OneDrive - Queensland University of Technology/Documents/M83_Mice_Study/Combined_Mouse_Study/")
+library(ggplot2)
+library(Maaslin2)
+A <- read.csv("DA_Pathway_Family_Input.csv", row.names = 1)
+metadata <- read.csv("Meta_exp.csv", row.names = 1)
+
+fit_data <- Maaslin2(A, metadata, "Output_Maaslin2_Pathway_Family", standardize = F, reference = c("WT","Early"))
+
+
+B<- read.csv("all_pathway_family.csv")
+library(dplyr)
+library(purrr)
+A <- read.csv("Signifant_pathway_family.csv")
+A1 <- as.list(A$feature)
+A1
+Filtered <- B%>% filter(feature %in% A1)
+write_xlsx(Filtered, "Filtered_Pathways_Family_DA_File.xlsx") # Import as an excel file.
+
+
+A <- read.csv("Filtered_Pathways_Family_DA_File.csv")
+ggplot(A, aes(y= feature, x=log2FoldChange , group= Change,color=Change))+
+  geom_vline(xintercept = 0, size=1.5, color="grey")+
+  geom_errorbar(aes(xmin = log2FoldChange-stderr, xmax = log2FoldChange+stderr), width = 0.5,
+                color = "black", lwd=1.25, linetype=1)+
+  geom_point(size=6, aes(shape=metadata))+
+  xlab("Log2Fold Change")+ ylab("Differentially Abundant Pathways") + 
+  scale_color_manual(values=c('#90061b','#131195',"#00897B"))+
+  theme_bw()+
+  theme(legend.title = element_text(color= "black",face = "bold" ,size = 14,  hjust=0.5, vjust= 0.5,angle = 0))+ 
+  theme(legend.text =element_text(color= "black",face = "bold" ,size = 12,  hjust=0.5, vjust= 0.5,angle = 0))+
+  theme(axis.text.y=element_text(color= "black",face = "bold" ,size = 12,  hjust=1, vjust= 0.5,angle = 0)) +          
+  theme(axis.text.x =element_text(color= "black",face = "bold" ,size = 16,angle = 0, hjust=0.5)) +          
+  theme(axis.title.x = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 0))+         
+  theme(axis.title.y = element_text(color= "black",face = "bold" ,size = 18, hjust=0.5, vjust= 0.5,angle = 90))+
+  theme(strip.text = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 0))
+ggsave("DifferntialAbundance_Plot_bubbles_Family_pathway.png", width=14, height=8)
+
+ggplot(A, aes(x = metadata, y = feature, fill = Associations)) +
+  geom_tile(color = "white", lwd = 1.25, linetype = 1) +
+  scale_fill_distiller(palette = "Spectral") +
+  xlab("") + 
+  ylab("") + 
+  labs(fill = "Association Strength") +
+  guides(fill = guide_colourbar(barwidth = 0.55, barheight = 30)) +
+  coord_equal() +
+  theme(legend.title = element_text(color = "black", face = "bold", size = 14, hjust = 0.5, vjust = 0.5, angle = 0)) +
+  theme(axis.text.y = element_text(color = "black", face = "bold", size = 12, hjust = 1, vjust = 0.5, angle = 0)) +          
+  theme(axis.text.x = element_text(color = "black", face = "bold", size = 12, angle = 90, hjust = 0.5)) +          
+  theme(axis.title.x = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 0)) +         
+  theme(axis.title.y = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 90)) +
+  theme(strip.text.x = element_text(color = "black", face = "bold", size = 18, hjust = 0.5, vjust = 0.5, angle = 0)) +
+  geom_text(aes(label = Sign), color = "black", size = 5, fontface = "bold")
+ggsave("Association_Heat_Map_pathway_families.png", width = 12, height=12)
+
+
+# Venn diagram
+setwd("C:/Users/n11925256/OneDrive - Queensland University of Technology/Documents/M83_Mice_Study/")
+install.packages("VennDiagram")
+library(ggplot2)
+library(VennDiagram)
+library(RColorBrewer)
+A <- read.csv("A.csv")
+B <- read.csv("B.csv")
+C <- read.csv("C.csv")
+D <- read.csv("D.csv")
+
+set1 <- as.list(A$A)
+set2 <- as.list(B$B)
+set3 <- as.list(C$C)
+set4 <- as.list(D$D)
+
+my_col <- brewer.pal(4, "Dark2")
+
+my_col <- brewer.pal(4, "PiYG")
+venn.diagram(
+  x = list(set1, set2, set3, set4),
+  category.names = c("hαSyn-Tg Early" , "WT Early " , "hαSyn-Tg Late", "WT Late"),
+  lwd = 2,
+  lty = 'blank',
+  fill = my_col,
+  cex = .25,
+  fontface = "bold",
+  fontfamily = "sans",
+  cat.cex = 0.2,
+  cat.fontface = "bold",
+  cat.default.pos = "outer",
+  filename = 'VennDiagram2.png',
+  imagetype="png" ,
+  height = 850 , 
+  width = 850 , 
+  resolution = 600,
+  output=TRUE
+)
+
+setwd("C:/Users/n11925256/OneDrive - Queensland University of Technology/Documents/Divya/M83_Mouse/Long_term_Data/")
+A <- read.csv("A.csv")
+B <- read.csv("B.csv")
+C <- read.csv("C.csv")
+D <- read.csv("D.csv")
+
+set1 <- as.list(A$A)
+set2 <- as.list(B$B)
+set3 <- as.list(C$C)
+set4 <- as.list(D$D)
+
+venn.diagram(
+  x = list(set1, set2, set3, set4),
+  category.names = c("hαSyn-Tg Early" , "WT Early " , "hαSyn-Tg Late", "WT Late"),
+  lwd = 2,
+  lty = 'blank',
+  fill = my_col,
+  cex = .25,
+  fontface = "bold",
+  fontfamily = "sans",
+  cat.cex = 0.2,
+  cat.fontface = "bold",
+  cat.default.pos = "outer",
+  filename = 'VennDiagram2.png',
+  imagetype="png" ,
+  height = 850 , 
+  width = 850 , 
+  resolution = 600,
+  output=TRUE
+)
+
+
+citation()
